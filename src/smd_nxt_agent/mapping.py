@@ -44,10 +44,10 @@ def load_rules(config_dir: Path) -> Rules:
 
 def _condition_matches(spec: ComponentSpec, field: str, condition: Any) -> bool:
     value = getattr(spec, field, None)
-    field_value = value.value if hasattr(value, "value") else value
+    field_value = getattr(value, "value", value)
 
     if isinstance(condition, list):
-        return field_value in condition
+        return bool(field_value in condition)
     if isinstance(condition, dict):
         if field_value is None:
             return False
@@ -56,7 +56,7 @@ def _condition_matches(spec: ComponentSpec, field: str, condition: Any) -> bool:
         if "min" in condition and field_value < condition["min"]:
             return False
         return True
-    return field_value == condition
+    return bool(field_value == condition)
 
 
 def _rule_matches(spec: ComponentSpec, when: dict[str, Any]) -> bool:
@@ -71,7 +71,9 @@ def select_nozzle(spec: ComponentSpec, rules: Rules) -> tuple[str, str, str, boo
 
     nozzles = rules.machine["nozzles"]
     fallback_nozzle = (
-        "NOZZLE_PLACEHOLDER_FALLBACK" if "NOZZLE_PLACEHOLDER_FALLBACK" in nozzles else next(iter(nozzles))
+        "NOZZLE_PLACEHOLDER_FALLBACK"
+        if "NOZZLE_PLACEHOLDER_FALLBACK" in nozzles
+        else next(iter(nozzles))
     )
     return (
         fallback_nozzle,

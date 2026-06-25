@@ -27,7 +27,8 @@ def validate(
         warnings.append(
             f"body_height_mm={spec.body_height_mm} exceeds max_nozzle_clearance_mm={max_clearance}"
         )
-    if spec.height_confidence is not None and spec.height_confidence < thresholds["min_height_confidence"]:
+    min_height_confidence = thresholds["min_height_confidence"]
+    if spec.height_confidence is not None and spec.height_confidence < min_height_confidence:
         height_ok = False
         warnings.append(
             f"height_confidence={spec.height_confidence} below threshold "
@@ -51,7 +52,9 @@ def validate(
 
     # Lead geometry rough sanity: count * pitch should roughly bound the lead span.
     if spec.lead_count and spec.lead_pitch_mm and spec.lead_span_mm:
-        expected_min_span = (spec.lead_count / 4 - 1) * spec.lead_pitch_mm if spec.lead_count >= 4 else 0
+        expected_min_span = (
+            (spec.lead_count / 4 - 1) * spec.lead_pitch_mm if spec.lead_count >= 4 else 0
+        )
         if expected_min_span and spec.lead_span_mm < expected_min_span * 0.5:
             warnings.append(
                 f"lead_span_mm={spec.lead_span_mm} looks too small for "
@@ -63,8 +66,9 @@ def validate(
     if spec.weight_g is not None and max_weight is not None and spec.weight_g > max_weight:
         warnings.append(f"weight_g={spec.weight_g} exceeds max_component_weight_g={max_weight}")
 
-    if spec.confidence < thresholds["min_confidence"]:
-        warnings.append(f"overall confidence={spec.confidence} below threshold {thresholds['min_confidence']}")
+    min_confidence = thresholds["min_confidence"]
+    if spec.confidence < min_confidence:
+        warnings.append(f"overall confidence={spec.confidence} below threshold {min_confidence}")
 
     if mapping.fallback_used:
         warnings.append("nozzle/vision mapping used a fallback rule (no specific rule matched)")

@@ -8,12 +8,12 @@ is used directly as the tool input schema in `extract.py`.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class LeadType(str, Enum):
+class LeadType(StrEnum):
     NONE_CHIP_ELECTRODE = "none_chip_electrode"
     GULL_WING = "gull_wing"
     J_LEAD = "j_lead"
@@ -24,7 +24,7 @@ class LeadType(str, Enum):
     OTHER = "other"
 
 
-class TopSurface(str, Enum):
+class TopSurface(StrEnum):
     FLAT = "flat"
     CURVED = "curved"
     UNEVEN = "uneven"

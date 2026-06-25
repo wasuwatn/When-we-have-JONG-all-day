@@ -37,9 +37,9 @@ def _build_request(pdf_path: Path, *, model: str, use_cache: bool) -> Request:
         params=MessageCreateParamsNonStreaming(
             model=model,
             max_tokens=4096,
-            tools=[_component_spec_tool()],
+            tools=[_component_spec_tool()],  # type: ignore[list-item]
             tool_choice={"type": "tool", "name": TOOL_NAME},
-            messages=[{"role": "user", "content": content}],
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
         ),
     )
 

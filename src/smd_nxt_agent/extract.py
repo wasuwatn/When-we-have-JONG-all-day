@@ -99,7 +99,7 @@ def _extract_with_claude(
 ) -> ComponentSpec:
     content = _build_content(pdf_path, use_cache=use_cache)
     try:
-        resp = client.messages.create(
+        resp = client.messages.create(  # type: ignore[call-overload]
             model=model,
             max_tokens=4096,
             tools=[_component_spec_tool()],

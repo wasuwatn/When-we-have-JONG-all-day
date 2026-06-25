@@ -14,11 +14,21 @@ app = typer.Typer(help="Read SMD datasheets and produce reviewable Fuji NXT part
 @app.command()
 def extract(
     datasheets_dir: Path = typer.Argument(..., help="Folder of datasheet PDFs."),
-    out_dir: Path = typer.Argument(..., help="Folder to write parts.json/parts.csv/review_queue.json."),
-    model: str = typer.Option(DEFAULT_MODEL, help=f"One of: {', '.join(sorted(ALLOWED_MODELS))}"),
-    cache: bool = typer.Option(False, "--cache", help="Enable prompt caching on the PDF document block."),
-    batch: bool = typer.Option(False, "--batch", help="Use the Message Batches API instead of sync calls."),
-    config: Path = typer.Option(Path("config"), help="Folder containing machine.yaml / *_rules.yaml."),
+    out_dir: Path = typer.Argument(
+        ..., help="Folder to write parts.json/parts.csv/review_queue.json."
+    ),
+    model: str = typer.Option(
+        DEFAULT_MODEL, help=f"One of: {', '.join(sorted(ALLOWED_MODELS))}"
+    ),
+    cache: bool = typer.Option(
+        False, "--cache", help="Enable prompt caching on the PDF document block."
+    ),
+    batch: bool = typer.Option(
+        False, "--batch", help="Use the Message Batches API instead of sync calls."
+    ),
+    config: Path = typer.Option(
+        Path("config"), help="Folder containing machine.yaml / *_rules.yaml."
+    ),
 ) -> None:
     """Extract part data from every PDF in DATASHEETS_DIR and write results to OUT_DIR."""
     if model not in ALLOWED_MODELS:
@@ -38,8 +48,12 @@ def extract(
 @app.command(name="import-flexa")
 def import_flexa_cmd(
     export: Path = typer.Argument(..., help="Path to the Flexa part-library export file."),
-    config: Path = typer.Option(Path("config"), help="Folder to write nozzle_rules.yaml/vision_rules.yaml into."),
-    fixtures: Path = typer.Option(Path("tests/fixtures"), help="Folder to write derived test fixtures into."),
+    config: Path = typer.Option(
+        Path("config"), help="Folder to write nozzle_rules.yaml/vision_rules.yaml into."
+    ),
+    fixtures: Path = typer.Option(
+        Path("tests/fixtures"), help="Folder to write derived test fixtures into."
+    ),
 ) -> None:
     """Derive mapping rules and test fixtures from a Flexa part-library export."""
     from smd_nxt_agent.flexa_import import import_flexa

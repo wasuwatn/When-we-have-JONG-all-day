@@ -37,6 +37,10 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "W"]
 
+[tool.ruff.lint.per-file-ignores]
+# Typer's idiomatic style is to call Argument()/Option() as default values.
+"src/smd_nxt_agent/cli.py" = ["B008"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
