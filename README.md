@@ -40,19 +40,31 @@ smd-nxt import-flexa /path/to/export.csv
 smd-nxt extract ./datasheets ./out
 ```
 
-### Try it immediately with the bundled sample
+### Try it immediately with the bundled samples
 
-The repo ships a synthetic (fictional, non-IP) datasheet so you can run
+The repo ships two synthetic (fictional, non-IP) datasheets so you can run
 the pipeline before sourcing your own PDFs:
 
 ```bash
 smd-nxt extract ./examples ./out
 ```
 
-This extracts a fictional 0805 chip resistor and writes the three output
-files below. With the placeholder config it maps to
-`NOZZLE_PLACEHOLDER_SMALL` / `VISION_PLACEHOLDER_CHIP` — proof the whole
-flow works end to end. (Regenerate the sample with
+- `sample_0805_chip_resistor.pdf` is a clean, unambiguous datasheet. With
+  the placeholder config it maps to `NOZZLE_PLACEHOLDER_SMALL` /
+  `VISION_PLACEHOLDER_CHIP` and should land as **OK** — proof the whole
+  flow works end to end.
+- `sample_tantalum_cap_ambiguous.pdf` is a polarized part whose datasheet
+  deliberately omits the polarity marking and gives a contradictory
+  height (dimension table vs. mechanical drawing note). It should land in
+  **`review_queue.json`** instead of OK, so you can see the review path
+  in action. (This depends on the live model's judgment call rather than
+  a canned fixture, so it's very likely but not 100% guaranteed to be
+  flagged — `validate.py` will always flag the missing polarity feature
+  regardless, but `needs_review` from the height contradiction depends on
+  the model noticing it.)
+
+Run both together and you should see one OK and one REVIEW result.
+(Regenerate the samples with
 `pip install reportlab && python examples/make_sample_datasheet.py`.)
 
 Writes three files to `./out`:
