@@ -40,6 +40,21 @@ smd-nxt import-flexa /path/to/export.csv
 smd-nxt extract ./datasheets ./out
 ```
 
+### Try it immediately with the bundled sample
+
+The repo ships a synthetic (fictional, non-IP) datasheet so you can run
+the pipeline before sourcing your own PDFs:
+
+```bash
+smd-nxt extract ./examples ./out
+```
+
+This extracts a fictional 0805 chip resistor and writes the three output
+files below. With the placeholder config it maps to
+`NOZZLE_PLACEHOLDER_SMALL` / `VISION_PLACEHOLDER_CHIP` — proof the whole
+flow works end to end. (Regenerate the sample with
+`pip install reportlab && python examples/make_sample_datasheet.py`.)
+
 Writes three files to `./out`:
 
 - `parts.json` — full extracted spec, mapping, and validation per part.

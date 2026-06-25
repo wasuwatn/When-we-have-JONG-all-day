@@ -5,6 +5,8 @@
 datasheets/
 out/
 *.pdf
+# ...except the synthetic, non-IP sample used for trying the tool out.
+!examples/*.pdf
 
 # Python
 __pycache__/
