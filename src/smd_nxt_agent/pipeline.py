@@ -79,6 +79,27 @@ def _process_one(
     )
 
 
+def _write_outputs(records: list[PartRecord], out_dir: Path) -> list[PartRecord]:
+    (out_dir / "parts.json").write_text(
+        json.dumps([r.model_dump(mode="json") for r in records], indent=2)
+    )
+
+    with (out_dir / "parts.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        for record in records:
+            writer.writerow(_record_to_csv_row(record))
+
+    review_queue = [r.model_dump(mode="json") for r in records if r.validation.needs_review]
+    (out_dir / "review_queue.json").write_text(json.dumps(review_queue, indent=2))
+
+    ok_count = sum(1 for r in records if r.validation.ok)
+    review_count = len(review_queue)
+    print(f"OK: {ok_count}  REVIEW: {review_count}  TOTAL: {len(records)}")
+
+    return records
+
+
 def run(
     input_dir: Path,
     out_dir: Path,
@@ -100,21 +121,26 @@ def run(
         for pdf_path in list_pdfs(input_dir)
     ]
 
-    (out_dir / "parts.json").write_text(
-        json.dumps([r.model_dump(mode="json") for r in records], indent=2)
-    )
+    return _write_outputs(records, out_dir)
 
-    with (out_dir / "parts.csv").open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
-        writer.writeheader()
-        for record in records:
-            writer.writerow(_record_to_csv_row(record))
 
-    review_queue = [r.model_dump(mode="json") for r in records if r.validation.needs_review]
-    (out_dir / "review_queue.json").write_text(json.dumps(review_queue, indent=2))
+def run_single(
+    pdf_path: Path,
+    out_dir: Path,
+    *,
+    model: str = DEFAULT_MODEL,
+    use_cache: bool = False,
+    config_dir: Path = Path("config"),
+    extractor: Extractor | None = None,
+) -> list[PartRecord]:
+    """Same pipeline as `run`, but for exactly one datasheet PDF."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rules = load_rules(config_dir)
 
-    ok_count = sum(1 for r in records if r.validation.ok)
-    review_count = len(review_queue)
-    print(f"OK: {ok_count}  REVIEW: {review_count}  TOTAL: {len(records)}")
+    if extractor is None:
+        def extractor(p: Path) -> ComponentSpec:
+            return extract_spec(p, model=model, use_cache=use_cache)
 
-    return records
+    records = [_process_one(pdf_path, model=model, rules=rules, extractor=extractor)]
+
+    return _write_outputs(records, out_dir)
