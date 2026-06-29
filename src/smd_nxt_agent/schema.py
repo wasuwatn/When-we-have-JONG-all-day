@@ -53,13 +53,17 @@ class ComponentSpec(BaseModel):
     body_length_mm: float = Field(
         description=(
             "Component body length in millimeters. Convert from inches/mils if needed "
-            "(1 inch = 25.4 mm). Corresponds to JEDEC 'D' dimension where applicable."
+            "(1 inch = 25.4 mm). Corresponds to JEDEC 'D' dimension where applicable. "
+            "If the datasheet gives a tolerance range, use the NOMINAL (typical/center) "
+            "value, not the minimum or maximum."
         )
     )
     body_width_mm: float = Field(
         description=(
             "Component body width in millimeters. Convert from inches/mils if needed. "
-            "Corresponds to JEDEC 'E' dimension where applicable."
+            "Corresponds to JEDEC 'E' dimension where applicable. If the datasheet gives "
+            "a tolerance range, use the NOMINAL (typical/center) value, not the minimum "
+            "or maximum."
         )
     )
     body_height_mm: float = Field(
