@@ -22,10 +22,14 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
     "types-PyYAML>=6.0",
+    "pyinstaller>=6.0",
 ]
 
 [project.scripts]
 smd-nxt = "smd_nxt_agent.cli:app"
+
+[project.gui-scripts]
+smd-nxt-gui = "smd_nxt_agent.gui:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
