@@ -36,11 +36,11 @@ anything — the constraints below are safety rules, not style preferences.
 
 ```
 ingest   -> list PDFs in a folder
-extract  -> Claude API, forced tool_use, ComponentSpec (facts only)
+extract  -> Gemini API, forced structured output, ComponentSpec (facts only)
 mapping  -> pure rules from config/, ComponentSpec -> MachineMapping
 validate -> sanity + confidence thresholds -> ValidationResult
 pipeline -> wires the above, writes parts.json/parts.csv/review_queue.json
-batch    -> same contract as extract.py via the Message Batches API
+batch    -> same contract as extract.py via the Gemini Batch API
 flexa_import -> seeds nozzle_rules.yaml/vision_rules.yaml from a
                 historical Flexa export (scaffolded; export format TBD)
 ```
@@ -75,7 +75,7 @@ smd-nxt import-flexa <export> [--config config] [--fixtures tests/fixtures]
 Any change to `EXTRACTION_INSTRUCTIONS` or `ComponentSpec` field
 descriptions changes what the model is told to extract — re-read both
 together; the schema's `Field(description=...)` values ARE the
-extraction instructions sent as the tool's input schema.
+extraction instructions sent as the structured-output response schema.
 
 ## Before changing mapping.py or validate.py
 

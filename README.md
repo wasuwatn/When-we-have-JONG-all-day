@@ -4,7 +4,7 @@ Reads SMD component datasheets (PDF) and produces reviewable part data for
 configuring a Fuji NXT pick-and-place machine: body size, lead/electrode
 info, polarity, and a derived nozzle + vision/recognition type.
 
-**Design principle:** the AI (Claude) extracts physical facts from the
+**Design principle:** the AI (Gemini) extracts physical facts from the
 datasheet; pure rule-based code decides the nozzle and vision type from
 those facts plus your machine's configuration. The AI never picks
 hardware settings. See [`CLAUDE.md`](CLAUDE.md) for the full set of
@@ -15,7 +15,7 @@ safety rules this tool enforces.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env   # fill in ANTHROPIC_API_KEY
+cp .env.example .env   # fill in GEMINI_API_KEY
 ```
 
 ## Fill in your machine config before trusting output
@@ -78,12 +78,14 @@ Writes three files to `./out`:
 
 Options:
 
-- `--model` — `claude-sonnet-4-6` (default), `claude-opus-4-8` (hard
-  drawings), or `claude-haiku-4-5` (cheap/easy parts).
-- `--cache` — enable prompt caching on the PDF document block, useful if
-  you re-run extraction on the same datasheet.
-- `--batch` — use the Anthropic Message Batches API for high-volume runs
-  instead of one call per PDF.
+- `--model` — `gemini-2.5-flash` (default), `gemini-2.5-pro` (hard
+  drawings), or `gemini-2.5-flash-lite` (cheap/easy parts).
+- `--cache` — enable Gemini context caching on the PDF content, useful if
+  you re-run extraction on the same datasheet. Not supported together
+  with `--batch`; very small datasheets may fall under Gemini's minimum
+  cacheable size and end up not actually cached.
+- `--batch` — use the Gemini Batch API for high-volume runs instead of
+  one call per PDF.
 
 ## Safety note
 

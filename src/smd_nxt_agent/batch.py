@@ -1,9 +1,10 @@
-"""High-volume extraction via the Anthropic Message Batches API.
+"""High-volume extraction via the Gemini Batch API.
 
-Same extraction contract as extract.py (base64 document + forced
-tool_use against the ComponentSpec schema), just submitted as one batch
-of requests instead of one call per PDF. Batch results return unordered,
-so everything downstream is keyed by `custom_id` (the PDF stem).
+Same extraction contract as extract.py (PDF + forced structured output
+against the ComponentSpec schema), just submitted as one batch of
+requests instead of one call per PDF. When no per-request `key` is
+supplied, Gemini's inline batch responses preserve request order, so
+results are zipped back to `pdf_paths` positionally.
 """
 
 from __future__ import annotations
@@ -11,16 +12,14 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import anthropic
-from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
-from anthropic.types.messages.batch_create_params import Request
+from google import genai
+from google.genai import types
 
 from smd_nxt_agent.extract import (
     DEFAULT_MODEL,
-    TOOL_NAME,
     ExtractError,
     _build_content,
-    _component_spec_tool,
+    _response_config,
 )
 from smd_nxt_agent.ingest import list_pdfs
 from smd_nxt_agent.mapping import load_rules, map_spec
@@ -29,19 +28,18 @@ from smd_nxt_agent.validate import validate
 
 POLL_INTERVAL_S = 10.0
 
+_TERMINAL_STATES = frozenset(
+    {
+        types.JobState.JOB_STATE_SUCCEEDED,
+        types.JobState.JOB_STATE_FAILED,
+        types.JobState.JOB_STATE_CANCELLED,
+        types.JobState.JOB_STATE_EXPIRED,
+    }
+)
 
-def _build_request(pdf_path: Path, *, model: str, use_cache: bool) -> Request:
-    content = _build_content(pdf_path, use_cache=use_cache)
-    return Request(
-        custom_id=pdf_path.stem,
-        params=MessageCreateParamsNonStreaming(
-            model=model,
-            max_tokens=4096,
-            tools=[_component_spec_tool()],  # type: ignore[list-item]
-            tool_choice={"type": "tool", "name": TOOL_NAME},
-            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
-        ),
-    )
+
+def _build_request(pdf_path: Path) -> types.InlinedRequest:
+    return types.InlinedRequest(contents=_build_content(pdf_path), config=_response_config())
 
 
 def submit_batch(
@@ -49,62 +47,84 @@ def submit_batch(
     *,
     model: str = DEFAULT_MODEL,
     use_cache: bool = False,
-    client: anthropic.Anthropic | None = None,
+    client: genai.Client | None = None,
 ) -> str:
-    """Creates a batch job and returns its batch id."""
+    """Creates a batch job and returns its job name."""
+    if use_cache:
+        raise NotImplementedError(
+            "use_cache is not supported for batch extraction: each PDF would need "
+            "its own cache object since batch entries don't share a prefix, and "
+            "this combination is unverified against the Gemini Batch API."
+        )
     if client is None:
-        client = anthropic.Anthropic()
-    requests = [_build_request(p, model=model, use_cache=use_cache) for p in pdf_paths]
-    batch = client.messages.batches.create(requests=requests)
-    return batch.id
+        client = genai.Client()
+    requests = [_build_request(p) for p in pdf_paths]
+    batch_job = client.batches.create(model=model, src=requests)
+    if not batch_job.name:
+        raise RuntimeError(f"Gemini batch creation did not return a job name (model={model!r}).")
+    return batch_job.name
 
 
 def wait_for_batch(
-    batch_id: str,
+    job_name: str,
     *,
-    client: anthropic.Anthropic,
+    client: genai.Client,
     poll_interval_s: float = POLL_INTERVAL_S,
 ) -> None:
     while True:
-        status = client.messages.batches.retrieve(batch_id)
-        if status.processing_status == "ended":
+        job = client.batches.get(name=job_name)
+        if job.state in _TERMINAL_STATES:
             return
         time.sleep(poll_interval_s)
 
 
 def collect_results(
-    batch_id: str,
+    job_name: str,
     *,
-    client: anthropic.Anthropic,
+    client: genai.Client,
     model: str,
+    pdf_paths: list[Path],
 ) -> dict[str, ComponentSpec]:
-    """Returns custom_id -> ComponentSpec. Batch results are unordered."""
-    specs: dict[str, ComponentSpec] = {}
-    for entry in client.messages.batches.results(batch_id):
-        custom_id = entry.custom_id
-        result = entry.result
-        if result.type != "succeeded":
-            raise ExtractError(
-                f"Batch entry {custom_id!r} did not succeed: {result.type}",
-                pdf_path=Path(custom_id),
-                model=model,
-            )
-        message = result.message
-        tool_block = next(
-            (
-                block
-                for block in message.content
-                if block.type == "tool_use" and block.name == TOOL_NAME
-            ),
-            None,
+    """Returns pdf stem -> ComponentSpec. Relies on request/response order matching."""
+    job = client.batches.get(name=job_name)
+    if job.state != types.JobState.JOB_STATE_SUCCEEDED:
+        raise ExtractError(
+            f"Batch job {job_name!r} did not succeed: {job.state}",
+            pdf_path=Path(job_name),
+            model=model,
         )
-        if tool_block is None:
+
+    responses = (job.dest.inlined_responses if job.dest else None) or []
+    if len(responses) != len(pdf_paths):
+        raise ExtractError(
+            f"Batch job {job_name!r} returned {len(responses)} responses for "
+            f"{len(pdf_paths)} requests.",
+            pdf_path=Path(job_name),
+            model=model,
+        )
+
+    specs: dict[str, ComponentSpec] = {}
+    for pdf_path, item in zip(pdf_paths, responses, strict=True):
+        if item.error is not None:
             raise ExtractError(
-                f"No {TOOL_NAME} tool_use block for {custom_id!r}",
-                pdf_path=Path(custom_id),
+                f"Batch entry for {pdf_path.name} failed: {item.error}",
+                pdf_path=pdf_path,
                 model=model,
             )
-        specs[custom_id] = ComponentSpec.model_validate(tool_block.input)
+        response = item.response
+        parsed = response.parsed if response else None
+        if isinstance(parsed, ComponentSpec):
+            specs[pdf_path.stem] = parsed
+        elif parsed is not None:
+            specs[pdf_path.stem] = ComponentSpec.model_validate(parsed)
+        elif response and response.text:
+            specs[pdf_path.stem] = ComponentSpec.model_validate_json(response.text)
+        else:
+            raise ExtractError(
+                f"No parseable ComponentSpec in batch entry for {pdf_path.name}.",
+                pdf_path=pdf_path,
+                model=model,
+            )
     return specs
 
 
@@ -115,9 +135,9 @@ def run_batch(
     model: str = DEFAULT_MODEL,
     use_cache: bool = False,
     config_dir: Path = Path("config"),
-    client: anthropic.Anthropic | None = None,
+    client: genai.Client | None = None,
 ) -> list[PartRecord]:
-    """Same outputs as pipeline.run(), driven by the Batches API for high volume."""
+    """Same outputs as pipeline.run(), driven by the Batch API for high volume."""
     import csv
     import json
 
@@ -127,18 +147,17 @@ def run_batch(
     rules = load_rules(config_dir)
 
     pdf_paths = list_pdfs(input_dir)
-    by_stem = {p.stem: p for p in pdf_paths}
 
     if client is None:
-        client = anthropic.Anthropic()
+        client = genai.Client()
 
-    batch_id = submit_batch(pdf_paths, model=model, use_cache=use_cache, client=client)
-    wait_for_batch(batch_id, client=client)
-    specs_by_id = collect_results(batch_id, client=client, model=model)
+    job_name = submit_batch(pdf_paths, model=model, use_cache=use_cache, client=client)
+    wait_for_batch(job_name, client=client)
+    specs_by_stem = collect_results(job_name, client=client, model=model, pdf_paths=pdf_paths)
 
     records = []
-    for custom_id, spec in specs_by_id.items():
-        pdf_path = by_stem[custom_id]
+    for pdf_path in pdf_paths:
+        spec = specs_by_stem[pdf_path.stem]
         mapping = map_spec(spec, rules)
         validation = validate(spec, mapping, rules.machine)
         records.append(

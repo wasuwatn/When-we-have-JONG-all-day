@@ -5,32 +5,34 @@ nothing else — it never selects a nozzle or vision type. That decision
 belongs to `mapping.py`, which is pure rule-based code driven by
 `config/`.
 
-The Claude call is isolated behind `_extract_with_claude` so a different
+The Gemini call is isolated behind `_extract_with_gemini` so a different
 provider could be swapped in later without touching `extract_spec`'s
 public contract.
 """
 
 from __future__ import annotations
 
-import base64
+import time
 from pathlib import Path
 from typing import Any
 
-import anthropic
+from google import genai
+from google.genai import types
+from google.genai.errors import APIError
 
 from smd_nxt_agent.schema import ComponentSpec
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 ALLOWED_MODELS = frozenset(
     {
-        "claude-sonnet-4-6",
-        "claude-opus-4-8",
-        "claude-haiku-4-5",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
     }
 )
 
-TOOL_NAME = "record_component_spec"
+_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 
 EXTRACTION_INSTRUCTIONS = """\
 Extract the physical specification of the SMD component described in this \
@@ -57,7 +59,7 @@ rather than directly read from the datasheet. Report height_confidence and \
 polarity_confidence separately from the overall confidence for exactly \
 this reason.
 
-Record your findings using the record_component_spec tool.
+Record your findings as a single JSON object matching the provided schema.
 """
 
 
@@ -71,83 +73,116 @@ class ExtractError(Exception):
         self.request_id = request_id
 
 
-def _component_spec_tool() -> dict[str, Any]:
-    return {
-        "name": TOOL_NAME,
-        "description": "Record the extracted SMD component specification.",
-        "input_schema": ComponentSpec.model_json_schema(),
-    }
+def _response_config(*, cached_content: str | None = None) -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(
+        max_output_tokens=4096,
+        response_mime_type="application/json",
+        response_schema=ComponentSpec,
+        cached_content=cached_content,
+    )
 
 
-def _build_content(pdf_path: Path, *, use_cache: bool) -> list[dict[str, Any]]:
-    b64 = base64.standard_b64encode(pdf_path.read_bytes()).decode()
-    doc: dict[str, Any] = {
-        "type": "document",
-        "source": {"type": "base64", "media_type": "application/pdf", "data": b64},
-    }
-    if use_cache:
-        doc["cache_control"] = {"type": "ephemeral"}
-    return [doc, {"type": "text", "text": EXTRACTION_INSTRUCTIONS}]
+def _build_content(pdf_path: Path) -> list[Any]:
+    return [
+        types.Part.from_bytes(data=pdf_path.read_bytes(), mime_type="application/pdf"),
+        EXTRACTION_INSTRUCTIONS,
+    ]
 
 
-def _extract_with_claude(
+def _generate_with_retry(
+    client: genai.Client,
+    *,
+    model: str,
+    contents: list[Any],
+    config: types.GenerateContentConfig,
+    max_retries: int,
+) -> types.GenerateContentResponse:
+    delay = 1.0
+    for attempt in range(max_retries + 1):
+        try:
+            return client.models.generate_content(model=model, contents=contents, config=config)
+        except APIError as exc:
+            code = getattr(exc, "code", None)
+            if code not in _RETRYABLE_STATUS_CODES or attempt == max_retries:
+                raise
+            time.sleep(delay)
+            delay *= 2
+    raise AssertionError("unreachable")  # loop above always returns or raises
+
+
+def _extract_with_gemini(
     pdf_path: Path,
     *,
     model: str,
     use_cache: bool,
-    client: anthropic.Anthropic,
+    client: genai.Client,
+    max_retries: int,
 ) -> ComponentSpec:
-    content = _build_content(pdf_path, use_cache=use_cache)
+    contents = _build_content(pdf_path)
+    cached_content: str | None = None
+
     try:
-        resp = client.messages.create(  # type: ignore[call-overload]
+        if use_cache:
+            # Explicit caching has a minimum content size (commonly cited around
+            # 2048 input tokens), so a small single-page datasheet may not
+            # actually be eligible — caches.create can fail for tiny PDFs.
+            cache = client.caches.create(
+                model=model,
+                config=types.CreateCachedContentConfig(contents=[contents[0]]),
+            )
+            if not cache.name:
+                raise ExtractError(
+                    f"Cache creation for {pdf_path.name} did not return a cache name.",
+                    pdf_path=pdf_path,
+                    model=model,
+                )
+            cached_content = cache.name
+            contents = [EXTRACTION_INSTRUCTIONS]
+
+        resp = _generate_with_retry(
+            client,
             model=model,
-            max_tokens=4096,
-            tools=[_component_spec_tool()],
-            tool_choice={"type": "tool", "name": TOOL_NAME},
-            messages=[{"role": "user", "content": content}],
+            contents=contents,
+            config=_response_config(cached_content=cached_content),
+            max_retries=max_retries,
         )
-    except (
-        anthropic.APIStatusError,
-        anthropic.RateLimitError,
-        anthropic.APIConnectionError,
-        anthropic.BadRequestError,
-    ) as exc:
-        request_id = getattr(exc, "request_id", None)
+    except APIError as exc:
         raise ExtractError(
-            f"Anthropic API call failed for {pdf_path.name}: {exc}",
+            f"Gemini API call failed for {pdf_path.name}: {exc}",
             pdf_path=pdf_path,
             model=model,
-            request_id=request_id,
+            request_id=str(getattr(exc, "code", None)),
         ) from exc
 
-    if resp.stop_reason == "max_tokens":
+    candidates = resp.candidates or []
+    if not candidates:
         raise ExtractError(
-            f"Response for {pdf_path.name} was truncated at max_tokens before "
-            "completing the tool call.",
+            f"No candidates in response for {pdf_path.name}.",
             pdf_path=pdf_path,
             model=model,
         )
-    if resp.stop_reason == "refusal":
+    finish_reason = candidates[0].finish_reason
+    if finish_reason is not None and "STOP" not in str(finish_reason):
         raise ExtractError(
-            f"Model refused to extract {pdf_path.name}: {resp.stop_reason!r} "
-            f"(stop_sequence={getattr(resp, 'stop_sequence', None)!r})",
+            f"Response for {pdf_path.name} finished abnormally: {finish_reason!r}.",
             pdf_path=pdf_path,
             model=model,
         )
 
-    tool_block = next(
-        (block for block in resp.content if block.type == "tool_use" and block.name == TOOL_NAME),
-        None,
+    parsed = resp.parsed
+    if isinstance(parsed, ComponentSpec):
+        return parsed
+    if parsed is not None:
+        return ComponentSpec.model_validate(parsed)
+    if resp.text:
+        return ComponentSpec.model_validate_json(resp.text)
+
+    raise ExtractError(
+        f"No parseable ComponentSpec in response for {pdf_path.name} "
+        f"(finish_reason={finish_reason!r}).",
+        pdf_path=pdf_path,
+        model=model,
     )
-    if tool_block is None:
-        raise ExtractError(
-            f"No {TOOL_NAME} tool_use block in response for {pdf_path.name} "
-            f"(stop_reason={resp.stop_reason!r}).",
-            pdf_path=pdf_path,
-            model=model,
-        )
-
-    return ComponentSpec.model_validate(tool_block.input)
 
 
 def extract_spec(
@@ -155,20 +190,23 @@ def extract_spec(
     *,
     model: str = DEFAULT_MODEL,
     use_cache: bool = False,
-    client: anthropic.Anthropic | None = None,
+    client: genai.Client | None = None,
     timeout: float = 600.0,
     max_retries: int = 4,
 ) -> ComponentSpec:
     """Extract a ComponentSpec from a single datasheet PDF.
 
-    `client` is injectable for testing; when omitted, an `anthropic.Anthropic()`
-    client is constructed from the environment (ANTHROPIC_API_KEY).
+    `client` is injectable for testing; when omitted, a `genai.Client()` is
+    constructed from the environment (GEMINI_API_KEY).
     """
     if model not in ALLOWED_MODELS:
         raise ValueError(f"model must be one of {sorted(ALLOWED_MODELS)}, got {model!r}")
 
     if client is None:
-        client = anthropic.Anthropic()
-    client = client.with_options(timeout=timeout, max_retries=max_retries)
+        # HttpOptions.timeout is documented in milliseconds for the SDK's REST
+        # transport.
+        client = genai.Client(http_options=types.HttpOptions(timeout=int(timeout * 1000)))
 
-    return _extract_with_claude(pdf_path, model=model, use_cache=use_cache, client=client)
+    return _extract_with_gemini(
+        pdf_path, model=model, use_cache=use_cache, client=client, max_retries=max_retries
+    )
