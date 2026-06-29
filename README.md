@@ -13,9 +13,12 @@ safety rules this tool enforces.
 ## GUI (no terminal needed)
 
 For non-technical users, there's a simple desktop window instead of the
-CLI: enter your Gemini API key once, pick a datasheets folder and an
-output folder, click **Run extraction**, and see OK/REVIEW results in
-the window.
+CLI. The flow is one part at a time: enter your Gemini API key once, type
+the part number, pick its datasheet PDF, click **Analyze**, and see the
+result in the window. Anything unsafe or ambiguous (a part-number mismatch,
+or a part that needs review) pops up as a modal asking you to confirm.
+Results are written to `out/` automatically. Folder/batch extraction stays
+on the CLI (`smd-nxt extract <dir> <out>`).
 
 ```bash
 pip install -e ".[dev]"

@@ -1,9 +1,11 @@
 """Desktop GUI for smd-nxt-agent.
 
-A thin Tkinter front end over `pipeline.run`. It never makes extraction or
-mapping decisions itself - it only collects inputs (API key, folders, model
-choice) and displays the same parts.json/parts.csv/review_queue.json the CLI
-produces.
+A thin Tkinter front end over `pipeline.run_single`. It never makes
+extraction or mapping decisions itself - it collects one part number plus
+its datasheet PDF, runs the pipeline, and displays the same
+parts.json/parts.csv/review_queue.json the CLI produces. Anything unsafe or
+ambiguous is surfaced as a modal for human confirmation. Folder/batch runs
+stay on the CLI (`smd-nxt extract`).
 """
 
 from __future__ import annotations
@@ -98,43 +100,29 @@ class App(ttk.Frame):
 
     # -- Run ---------------------------------------------------------------
     def _build_run_section(self) -> None:
-        box = ttk.LabelFrame(self, text="2. Run", padding=10)
+        box = ttk.LabelFrame(self, text="2. Analyze a part", padding=10)
         box.pack(fill="x", pady=(0, 10))
 
-        self.mode_var = tk.StringVar(value="folder")
-        mode_row = ttk.Frame(box)
-        mode_row.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 6))
-        ttk.Radiobutton(
-            mode_row, text="Whole folder of datasheets", variable=self.mode_var,
-            value="folder", command=self._on_mode_change,
-        ).pack(side="left")
-        ttk.Radiobutton(
-            mode_row, text="One part number (single PDF)", variable=self.mode_var,
-            value="single", command=self._on_mode_change,
-        ).pack(side="left", padx=(12, 0))
-
-        self.part_number_label = ttk.Label(box, text="Part number:")
+        # Step 1: part number
+        ttk.Label(box, text="Part number:").grid(row=0, column=0, sticky="w")
         self.part_number_var = tk.StringVar()
         self.part_number_entry = ttk.Entry(box, textvariable=self.part_number_var, width=50)
+        self.part_number_entry.grid(row=0, column=1, sticky="we", padx=6)
+        ttk.Label(box, text="e.g. B57232V5103F360", foreground="gray").grid(
+            row=1, column=1, sticky="w", padx=6
+        )
 
-        self.input_label = ttk.Label(box, text="Datasheets folder:")
-        self.input_var = tk.StringVar(value=str(Path("examples").resolve()))
-        self.input_entry = ttk.Entry(box, textvariable=self.input_var, width=50)
-        self.input_browse = ttk.Button(box, text="Browse...", command=self._pick_input)
-
-        self.input_label.grid(row=1, column=0, sticky="w")
-        self.input_entry.grid(row=1, column=1, sticky="we", padx=6)
-        self.input_browse.grid(row=1, column=2)
-
-        ttk.Label(box, text="Output folder:").grid(row=2, column=0, sticky="w", pady=(6, 0))
-        self.output_var = tk.StringVar(value=str(Path("out").resolve()))
-        ttk.Entry(box, textvariable=self.output_var, width=50).grid(
+        # Step 2: datasheet PDF
+        ttk.Label(box, text="Datasheet PDF:").grid(row=2, column=0, sticky="w", pady=(6, 0))
+        self.input_var = tk.StringVar()
+        ttk.Entry(box, textvariable=self.input_var, width=50, state="readonly").grid(
             row=2, column=1, sticky="we", padx=6, pady=(6, 0)
         )
-        ttk.Button(box, text="Browse...", command=self._pick_output).grid(
+        ttk.Button(box, text="Browse...", command=self._pick_single_pdf).grid(
             row=2, column=2, pady=(6, 0)
         )
 
+        # Low-prominence model choice; defaults so nothing extra is needed
         ttk.Label(box, text="Model:").grid(row=3, column=0, sticky="w", pady=(6, 0))
         self.model_var = tk.StringVar(value=DEFAULT_MODEL)
         ttk.Combobox(
@@ -143,34 +131,15 @@ class App(ttk.Frame):
 
         box.columnconfigure(1, weight=1)
 
-        self.run_button = ttk.Button(self, text="Run extraction", command=self._on_run)
+        # Output is fixed; no picker. Auto-created by run_single().
+        self.output_dir = Path("out")
+
+        # Step 3: analyze
+        self.run_button = ttk.Button(self, text="Analyze", command=self._on_run)
         self.run_button.pack(pady=(0, 10))
 
         self.progress = ttk.Progressbar(self, mode="indeterminate")
         self.progress.pack(fill="x", pady=(0, 10))
-
-    def _on_mode_change(self) -> None:
-        if self.mode_var.get() == "single":
-            self.input_label.config(text="Datasheet PDF:")
-            self.input_browse.config(command=self._pick_single_pdf)
-            self.part_number_label.grid(row=1, column=0, sticky="w", pady=(0, 6))
-            self.part_number_entry.grid(row=1, column=1, sticky="we", padx=6, pady=(0, 6))
-            self.input_label.grid(row=2, column=0, sticky="w")
-            self.input_entry.grid(row=2, column=1, sticky="we", padx=6)
-            self.input_browse.grid(row=2, column=2)
-        else:
-            self.input_label.config(text="Datasheets folder:")
-            self.input_browse.config(command=self._pick_input)
-            self.part_number_label.grid_forget()
-            self.part_number_entry.grid_forget()
-            self.input_label.grid(row=1, column=0, sticky="w")
-            self.input_entry.grid(row=1, column=1, sticky="we", padx=6)
-            self.input_browse.grid(row=1, column=2)
-
-    def _pick_input(self) -> None:
-        path = filedialog.askdirectory(title="Choose datasheets folder")
-        if path:
-            self.input_var.set(path)
 
     def _pick_single_pdf(self) -> None:
         path = filedialog.askopenfilename(
@@ -179,63 +148,36 @@ class App(ttk.Frame):
         if path:
             self.input_var.set(path)
 
-    def _pick_output(self) -> None:
-        path = filedialog.askdirectory(title="Choose output folder")
-        if path:
-            self.output_var.set(path)
-
     def _on_run(self) -> None:
         key = self.api_key_var.get().strip()
         if not key:
             messagebox.showwarning("Missing key", "Enter and save your Gemini API key first.")
             return
 
-        single_mode = self.mode_var.get() == "single"
-        output_dir = Path(self.output_var.get())
+        part_number = self.part_number_var.get().strip()
+        if not part_number:
+            messagebox.showwarning("Missing part number", "Enter the part number first.")
+            return
 
-        if single_mode:
-            part_number = self.part_number_var.get().strip()
-            if not part_number:
-                messagebox.showwarning("Missing part number", "Enter the part number first.")
-                return
-            pdf_path = Path(self.input_var.get())
-            if not pdf_path.is_file():
-                messagebox.showerror("File not found", f"No such file:\n{pdf_path}")
-                return
-        else:
-            input_dir = Path(self.input_var.get())
-            if not input_dir.is_dir():
-                messagebox.showerror("Folder not found", f"No such folder:\n{input_dir}")
-                return
+        pdf_path = Path(self.input_var.get())
+        if not self.input_var.get() or not pdf_path.is_file():
+            messagebox.showerror("File not found", "Choose this part's datasheet PDF first.")
+            return
 
         os.environ["GEMINI_API_KEY"] = key
         self.run_button.config(state="disabled")
-        self.status_var.set("Running...")
+        self.status_var.set("Analyzing...")
         self.results_text.delete("1.0", "end")
         self.progress.start(12)
 
         model = self.model_var.get()
-        if single_mode:
-            thread = threading.Thread(
-                target=self._run_pipeline_single,
-                args=(pdf_path, output_dir, model, self.part_number_var.get().strip()),
-                daemon=True,
-            )
-        else:
-            thread = threading.Thread(
-                target=self._run_pipeline, args=(input_dir, output_dir, model), daemon=True
-            )
+        thread = threading.Thread(
+            target=self._run_pipeline_single,
+            args=(pdf_path, self.output_dir, model, part_number),
+            daemon=True,
+        )
         thread.start()
         self.master.after(200, self._poll_queue)
-
-    def _run_pipeline(self, input_dir: Path, output_dir: Path, model: str) -> None:
-        try:
-            from smd_nxt_agent.pipeline import run
-
-            records = run(input_dir, output_dir, model=model, config_dir=Path("config"))
-            self._result_queue.put(("done", (records, output_dir)))
-        except Exception as exc:  # noqa: BLE001
-            self._result_queue.put(("error", str(exc)))
 
     def _run_pipeline_single(
         self, pdf_path: Path, output_dir: Path, model: str, part_number: str
@@ -245,15 +187,14 @@ class App(ttk.Frame):
 
             records = run_single(pdf_path, output_dir, model=model, config_dir=Path("config"))
             extracted = records[0].spec.part_number
+            mismatch = None
             if extracted and extracted.strip().lower() != part_number.strip().lower():
-                self._result_queue.put(
-                    (
-                        "warn_part_number",
-                        f"You entered '{part_number}' but the datasheet shows "
-                        f"'{extracted}'. Double-check this is the right file.",
-                    )
+                mismatch = (
+                    f"You entered '{part_number}' but the datasheet shows "
+                    f"'{extracted}'.\n\nUse this file anyway?"
                 )
-            self._result_queue.put(("done", (records, output_dir)))
+            # Single terminal event so the mismatch confirm can cancel cleanly.
+            self._result_queue.put(("done", (records, output_dir, mismatch)))
         except Exception as exc:  # noqa: BLE001
             self._result_queue.put(("error", str(exc)))
 
@@ -261,11 +202,6 @@ class App(ttk.Frame):
         try:
             kind, payload = self._result_queue.get_nowait()
         except queue.Empty:
-            self.master.after(200, self._poll_queue)
-            return
-
-        if kind == "warn_part_number":
-            messagebox.showwarning("Part number mismatch", str(payload))
             self.master.after(200, self._poll_queue)
             return
 
@@ -277,7 +213,11 @@ class App(ttk.Frame):
             messagebox.showerror("Extraction failed", str(payload))
             return
 
-        records, output_dir = payload
+        records, output_dir, mismatch = payload
+        if mismatch and not messagebox.askyesno("Part number mismatch", mismatch):
+            self.status_var.set("Cancelled - part number mismatch.")
+            return
+
         ok_count = sum(1 for r in records if r.validation.ok)
         review_count = len(records) - ok_count
         self.status_var.set(
@@ -304,7 +244,7 @@ class App(ttk.Frame):
         btn_row.pack(fill="x")
         ttk.Button(
             btn_row, text="Open output folder",
-            command=lambda: webbrowser.open(self.output_var.get()),
+            command=lambda: webbrowser.open(str(self.output_dir.resolve())),
         ).pack(side="left")
 
     def _show_review_modal(self, review_records: list, output_dir: Path) -> None:
@@ -401,7 +341,7 @@ class App(ttk.Frame):
             if review:
                 lines.append("")
                 lines.append(f"⚠ {len(review)} part(s) need human review before machine use.")
-        self.results_text.insert("1.0", "\n".join(lines) or "No PDFs found in that folder.")
+        self.results_text.insert("1.0", "\n".join(lines) or "No result.")
 
 
 def main() -> None:
