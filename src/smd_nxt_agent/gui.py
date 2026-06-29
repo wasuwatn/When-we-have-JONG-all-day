@@ -19,9 +19,14 @@ import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+import yaml
+
 from smd_nxt_agent.extract import ALLOWED_MODELS, DEFAULT_MODEL
+from smd_nxt_agent.reference_rules import load_reference
 
 ENV_FILE = Path(".env")
+CONFIG_DIR = Path("config")
+MACHINE_YAML = CONFIG_DIR / "machine.yaml"
 
 
 def _load_saved_api_key() -> str:
@@ -48,24 +53,53 @@ def _save_api_key(key: str) -> None:
     ENV_FILE.write_text("\n".join(lines) + "\n")
 
 
+def _load_configured_head() -> str | None:
+    if not MACHINE_YAML.exists():
+        return None
+    machine = yaml.safe_load(MACHINE_YAML.read_text())
+    return machine.get("head") if machine else None
+
+
+def _save_configured_head(head_id: str | None) -> None:
+    if not MACHINE_YAML.exists():
+        return
+    lines = MACHINE_YAML.read_text().splitlines()
+    new_value = "null" if head_id is None else head_id
+    for i, line in enumerate(lines):
+        if line.strip().startswith("head:"):
+            lines[i] = f"head: {new_value}"
+            break
+    MACHINE_YAML.write_text("\n".join(lines) + "\n")
+
+
 class App(ttk.Frame):
     def __init__(self, master: tk.Tk) -> None:
         super().__init__(master, padding=12)
         self.master = master
         master.title("SMD NXT Agent")
-        master.geometry("640x520")
+        master.geometry("700x560")
         self.pack(fill="both", expand=True)
 
         self._result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
-        self._build_setup_section()
-        self._build_run_section()
-        self._build_results_section()
+
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill="both", expand=True)
+
+        analyze_tab = ttk.Frame(notebook, padding=12)
+        reference_tab = ttk.Frame(notebook, padding=12)
+        notebook.add(analyze_tab, text="Analyze a part")
+        notebook.add(reference_tab, text="Nozzle & Vision Reference")
+
+        self._build_setup_section(analyze_tab)
+        self._build_run_section(analyze_tab)
+        self._build_results_section(analyze_tab)
+        self._build_reference_section(reference_tab)
 
         self.api_key_var.set(_load_saved_api_key())
 
     # -- Setup -----------------------------------------------------------
-    def _build_setup_section(self) -> None:
-        box = ttk.LabelFrame(self, text="1. Setup", padding=10)
+    def _build_setup_section(self, parent: ttk.Frame) -> None:
+        box = ttk.LabelFrame(parent, text="1. Setup", padding=10)
         box.pack(fill="x", pady=(0, 10))
 
         ttk.Label(box, text="Gemini API key:").grid(row=0, column=0, sticky="w")
@@ -99,8 +133,8 @@ class App(ttk.Frame):
         messagebox.showinfo("Saved", "API key saved to .env for next time.")
 
     # -- Run ---------------------------------------------------------------
-    def _build_run_section(self) -> None:
-        box = ttk.LabelFrame(self, text="2. Analyze a part", padding=10)
+    def _build_run_section(self, parent: ttk.Frame) -> None:
+        box = ttk.LabelFrame(parent, text="2. Analyze a part", padding=10)
         box.pack(fill="x", pady=(0, 10))
 
         # Step 1: part number
@@ -135,10 +169,10 @@ class App(ttk.Frame):
         self.output_dir = Path("out")
 
         # Step 3: analyze
-        self.run_button = ttk.Button(self, text="Analyze", command=self._on_run)
+        self.run_button = ttk.Button(parent, text="Analyze", command=self._on_run)
         self.run_button.pack(pady=(0, 10))
 
-        self.progress = ttk.Progressbar(self, mode="indeterminate")
+        self.progress = ttk.Progressbar(parent, mode="indeterminate")
         self.progress.pack(fill="x", pady=(0, 10))
 
     def _pick_single_pdf(self) -> None:
@@ -230,8 +264,8 @@ class App(ttk.Frame):
             self._show_review_modal(review_records, output_dir)
 
     # -- Results -------------------------------------------------------
-    def _build_results_section(self) -> None:
-        box = ttk.LabelFrame(self, text="3. Results", padding=10)
+    def _build_results_section(self, parent: ttk.Frame) -> None:
+        box = ttk.LabelFrame(parent, text="3. Results", padding=10)
         box.pack(fill="both", expand=True)
 
         self.status_var = tk.StringVar(value="Not run yet.")
@@ -342,6 +376,104 @@ class App(ttk.Frame):
                 lines.append("")
                 lines.append(f"⚠ {len(review)} part(s) need human review before machine use.")
         self.results_text.insert("1.0", "\n".join(lines) or "No result.")
+
+    # -- Reference tables ------------------------------------------------
+    def _build_reference_section(self, parent: ttk.Frame) -> None:
+        self._reference = load_reference(CONFIG_DIR)
+        unverified = not (
+            self._reference.nozzle_compat_verified and self._reference.vision_table_verified
+        )
+
+        if unverified:
+            ttk.Label(
+                parent,
+                text=(
+                    "⚠ This data was transcribed from a screenshot and is NOT yet verified "
+                    "against the official Fuji guide. Any nozzle/vision choice derived from "
+                    "it is forced into needs_review until verified: true is set in "
+                    "config/reference/*.yaml."
+                ),
+                foreground="#a05a00", wraplength=620, justify="left",
+            ).pack(fill="x", pady=(0, 10))
+
+        head_row = ttk.Frame(parent)
+        head_row.pack(fill="x", pady=(0, 10))
+        ttk.Label(head_row, text="Machine head (used for nozzle lookups):").pack(side="left")
+        heads = self._reference.available_heads()
+        self.head_var = tk.StringVar(value=_load_configured_head() or "")
+        head_combo = ttk.Combobox(
+            head_row, textvariable=self.head_var, values=heads, state="readonly", width=20
+        )
+        head_combo.pack(side="left", padx=6)
+        head_combo.bind("<<ComboboxSelected>>", self._on_head_selected)
+
+        notebook = ttk.Notebook(parent)
+        notebook.pack(fill="both", expand=True)
+
+        nozzle_tab = ttk.Frame(notebook, padding=6)
+        vision_tab = ttk.Frame(notebook, padding=6)
+        notebook.add(nozzle_tab, text="Nozzle compatibility")
+        notebook.add(vision_tab, text="Vision types")
+
+        self._build_nozzle_table(nozzle_tab)
+        self._build_vision_table(vision_tab)
+
+    def _on_head_selected(self, _event: object = None) -> None:
+        _save_configured_head(self.head_var.get() or None)
+
+    def _build_nozzle_table(self, parent: ttk.Frame) -> None:
+        columns = ("category", "diameter_mm", *self._reference.available_heads())
+        tree = ttk.Treeview(parent, columns=columns, show="headings", height=14)
+        tree.heading("category", text="Package")
+        tree.heading("diameter_mm", text="Diameter (mm)")
+        for head_id in self._reference.available_heads():
+            tree.heading(head_id, text=head_id)
+            tree.column(head_id, width=100, anchor="center")
+        tree.column("category", width=100)
+        tree.column("diameter_mm", width=90, anchor="center")
+
+        categories = (
+            self._reference.nozzle_compat.get("package_categories", [])
+            if self._reference.nozzle_compat
+            else []
+        )
+        heads = (
+            self._reference.nozzle_compat.get("heads", {}) if self._reference.nozzle_compat else {}
+        )
+        for category in categories:
+            row = [category["id"], category.get("diameter_mm") or "-"]
+            for head_id in self._reference.available_heads():
+                row.append(heads.get(head_id, {}).get(category["id"], "-"))
+            tree.insert("", "end", values=row)
+
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def _build_vision_table(self, parent: ttk.Frame) -> None:
+        columns = ("part_type", "vision_type", "remarks")
+        tree = ttk.Treeview(parent, columns=columns, show="headings", height=14)
+        tree.heading("part_type", text="Part type")
+        tree.heading("vision_type", text="Vision type")
+        tree.heading("remarks", text="Remarks")
+        tree.column("part_type", width=200)
+        tree.column("vision_type", width=90, anchor="center")
+        tree.column("remarks", width=300)
+
+        entries = (
+            self._reference.vision_table.get("entries", []) if self._reference.vision_table else []
+        )
+        for entry in entries:
+            tree.insert(
+                "", "end",
+                values=(entry["part_type_id"], entry["vision_type"], entry.get("remarks", "")),
+            )
+
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
 
 def main() -> None:

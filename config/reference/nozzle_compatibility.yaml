@@ -1,0 +1,204 @@
+# UNVERIFIED reference data — transcribed by AI from a user-provided
+# screenshot of a Fuji NXT "Nozzle compatibility table" on 2026-06-29.
+#
+# `verified: false` means nobody has checked these cells against the
+# official Fuji Nozzle Compatibility Guide yet. While false, every
+# nozzle/vision selection derived from this file is forced into
+# needs_review by validate.py (see reference_rules.py / validate.py),
+# no matter how confident the extraction was. Flip to true only after a
+# human has line-by-line checked this file against the real guide (or
+# regenerated it from a clean export/CSV of the table).
+#
+# Symbol meanings (matches the guide's legend):
+#   supported       -> nozzle can be used as-is
+#   multi:<n>        -> supported, but needs <n> nozzles for one operation
+#   image_individual -> all nozzles used but images are taken individually
+#   size_ok_no_nozzle -> part size is fine per spec, but no nozzle covers it
+#   unsupported      -> cannot be supported based on specs
+#
+# Any cell not legible in the source screenshot is recorded as
+# "unsupported" deliberately (fail-safe: never claim support we can't
+# read clearly).
+
+verified: false
+source_note: >
+  Transcribed from a screenshot pasted into chat; not yet cross-checked
+  against the printed/PDF Fuji guide. Re-verify every row before trusting.
+
+# Package/part categories, in the same left-to-right order as the table's
+# columns. `diameter` is the nozzle this tool will propose when a head
+# supports the category outright (symbol: supported) — taken from the
+# bottom "nozzle diameter vs. package" sub-table where legible; left null
+# where the screenshot didn't make the matching diameter row clear.
+package_categories:
+  - id: "0201"                 # 008004"
+    aliases: ["0201", "008004"]
+    diameter_mm: 0.2
+  - id: "03015R"
+    aliases: ["03015R"]
+    diameter_mm: 0.2
+  - id: "0402"                 # 01005"
+    aliases: ["0402", "01005"]
+    diameter_mm: 0.3
+  - id: "0603"                 # 0201"
+    aliases: ["0603"]
+    diameter_mm: 0.35
+  - id: "1005"                 # 0402"
+    aliases: ["1005"]
+    diameter_mm: 0.5
+  - id: "1608"                 # 0603"
+    aliases: ["1608"]
+    diameter_mm: 0.8
+  - id: "2012"                 # 0805"
+    aliases: ["2012", "0805"]
+    diameter_mm: 1.0
+  - id: "3216"                 # 1206"
+    aliases: ["3216", "1206"]
+    diameter_mm: 1.3
+  - id: "3225"                 # 1210"
+    aliases: ["3225", "1210"]
+    diameter_mm: 1.8
+  - id: "4532"                 # 1712"
+    aliases: ["4532", "1712"]
+    diameter_mm: 2.5
+  - id: "MELS"
+    aliases: ["MELS"]
+    diameter_mm: null
+  - id: "MELM"
+    aliases: ["MELM"]
+    diameter_mm: null
+  - id: "MELL"
+    aliases: ["MELL"]
+    diameter_mm: null
+  - id: "SSMIN"
+    aliases: ["SSMIN"]
+    diameter_mm: 1.3
+  - id: "SUMIN"
+    aliases: ["SUMIN"]
+    diameter_mm: 2.5
+  - id: "MINR_L"
+    aliases: ["MINR(L)", "MINR"]
+    diameter_mm: 2.5
+  - id: "PTRRL"
+    aliases: ["PTRR(L)", "PTRR"]
+    diameter_mm: 3.7
+  - id: "TNTA"
+    aliases: ["TNTA"]
+    diameter_mm: 3.7
+  - id: "TNTB"
+    aliases: ["TNTB"]
+    diameter_mm: null
+  - id: "TNTC"
+    aliases: ["TNTC"]
+    diameter_mm: null
+  - id: "TNTD"
+    aliases: ["TNTD"]
+    diameter_mm: null
+  - id: "COIL_3120"
+    aliases: ["3120"]
+    diameter_mm: null
+  - id: "TRMC"
+    aliases: ["TRMC"]
+    diameter_mm: null
+  - id: "ALS"
+    aliases: ["ALS"]
+    diameter_mm: null
+  - id: "ALL"
+    aliases: ["ALL"]
+    diameter_mm: null
+  - id: "SO08NP"
+    aliases: ["SO08NP"]
+    diameter_mm: null
+  - id: "SO14NP"
+    aliases: ["SO14NP"]
+    diameter_mm: null
+  - id: "SO28WP"
+    aliases: ["SO28WP"]
+    diameter_mm: null
+  - id: "TSOP"
+    aliases: ["TSOP"]
+    diameter_mm: null
+  - id: "SOFP_VQFP"
+    aliases: ["SOFP", "VQFP"]
+    diameter_mm: null
+  - id: "PLCC18"
+    aliases: ["PLCC18"]
+    diameter_mm: null
+  - id: "PLCC44"
+    aliases: ["PLCC44"]
+    diameter_mm: null
+  - id: "CONNECTOR"
+    aliases: ["Connector"]
+    diameter_mm: null
+  - id: "CSP"
+    aliases: ["CSP"]
+    diameter_mm: null
+
+# heads[head_id] = { package_category_id: symbol }. Categories omitted
+# for a head are treated as "unsupported" (fail-safe default).
+heads:
+  H24_H24G_H24S:
+    "0201": supported
+    "03015R": supported
+    "0402": supported
+    "0603": supported
+    "1005": supported
+    "1608": supported
+    "2012": supported
+    "3216": supported
+    "3225": multi:1-2
+    "4532": multi:1-2
+    MELS: supported
+    MELM: multi:1-2
+    MELL: unsupported
+    SSMIN: supported
+    SUMIN: supported
+    MINR_L: supported
+    PTRRL: multi:1-2
+    TNTA: supported
+
+  DX_R12:
+    "0402": supported
+    "0603": supported
+    "1005": supported
+    "1608": supported
+    "2012": supported
+    "3216": supported
+    "3225": supported
+    "4532": supported
+    MELS: supported
+    MELM: multi:6
+    SSMIN: supported
+    SUMIN: supported
+    MINR_L: supported
+    PTRRL: multi:6
+    TNTA: supported
+    TNTB: supported
+    TNTC: supported
+    TNTD: multi:6
+    COIL_3120: supported
+    TRMC: supported
+    ALL: multi:6
+
+  H08M:
+    "0402": supported
+    "0603": supported
+    "1005": supported
+    "1608": supported
+    "2012": supported
+    "3216": supported
+    SSMIN: image_individual
+    SUMIN: image_individual
+    TNTA: supported
+    TNTB: supported
+    TNTC: supported
+    TNTD: supported
+    SO08NP: multi:1
+    SO14NP: multi:2
+    SO28WP: multi:2
+    TSOP: supported
+    SOFP_VQFP: multi:1
+    PLCC18: multi:1
+    PLCC44: multi:1
+    CONNECTOR: multi:1
+    CSP: supported

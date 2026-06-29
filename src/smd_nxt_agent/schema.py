@@ -180,6 +180,7 @@ class MachineMapping(BaseModel):
     vision_rule_id: str
     rationale: str
     fallback_used: bool
+    reference_unverified: bool = False
 
 
 class ValidationResult(BaseModel):

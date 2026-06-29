@@ -5,6 +5,14 @@
 # Nozzle and vision identifiers below are neutral placeholders, NOT real
 # Fuji part numbers or algorithm names. Replace with your site's catalog.
 
+# Which pick-and-place head this machine uses, for looking up
+# config/reference/nozzle_compatibility.yaml. Must match one of that
+# file's `heads:` keys (e.g. H24_H24G_H24S, DX_R12, H08M). The GUI
+# reference page lets you pick this from a dropdown instead of editing
+# YAML by hand. Leave null to disable reference-table nozzle lookups
+# entirely (falls back to nozzle_rules.yaml as before).
+head: null
+
 # Maximum component height (mm) any nozzle on this machine can clear.
 # Safety-critical: components taller than this must never be auto-mapped.
 max_nozzle_clearance_mm: 999.0  # TODO: set to your real machine limit

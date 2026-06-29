@@ -73,11 +73,19 @@ def validate(
     if mapping.fallback_used:
         warnings.append("nozzle/vision mapping used a fallback rule (no specific rule matched)")
 
+    if mapping.reference_unverified:
+        warnings.append(
+            "nozzle/vision mapping was derived from an unverified reference table "
+            "(config/reference/*.yaml has verified: false) — confirm against the "
+            "official Fuji guide before trusting this on a real machine"
+        )
+
     needs_review = (
         spec.needs_review
         or not height_ok
         or not polarity_ok
         or mapping.fallback_used
+        or mapping.reference_unverified
         or spec.confidence < thresholds["min_confidence"]
     )
 
