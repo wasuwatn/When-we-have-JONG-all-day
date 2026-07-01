@@ -31,6 +31,12 @@ class TopSurface(StrEnum):
     UNKNOWN = "unknown"
 
 
+class TapeCarrierMaterial(StrEnum):
+    PAPER = "paper"
+    EMBOSSED = "embossed"
+    UNKNOWN = "unknown"
+
+
 class ComponentSpec(BaseModel):
     """Physical facts extracted from a datasheet. No nozzle/vision decisions here."""
 
@@ -89,14 +95,27 @@ class ComponentSpec(BaseModel):
         )
     )
     lead_count: int | None = Field(
-        default=None, description="Total number of leads/pins/balls, if determinable."
+        default=None,
+        description=(
+            "Total number of leads/pins/balls. Required whenever lead_type is not "
+            "'none_chip_electrode': read the pin/lead count from the pin table, pinout "
+            "diagram, or package outline drawing (e.g. count leads per side x number of "
+            "sides for QFP, or rows x columns for BGA) rather than leaving it blank. Omit "
+            "only if the datasheet genuinely never states or shows the count."
+        ),
     )
     lead_pitch_mm: float | None = Field(
         default=None,
         description="Distance between adjacent lead centers in mm (JEDEC 'e'), if applicable.",
     )
     lead_width_mm: float | None = Field(
-        default=None, description="Width of an individual lead in mm (JEDEC 'b'), if applicable."
+        default=None,
+        description=(
+            "Width of an individual lead in mm (JEDEC 'b'). Required whenever lead_type "
+            "is not 'none_chip_electrode': read it from the dimension table or mechanical "
+            "drawing (JEDEC 'b' dimension) rather than leaving it blank when the part has "
+            "formed leads/pins/balls."
+        ),
     )
     lead_span_mm: float | None = Field(
         default=None,
@@ -113,18 +132,55 @@ class ComponentSpec(BaseModel):
     polarity_feature: str | None = Field(
         default=None,
         description=(
-            "How polarity is marked on the part (e.g. 'cathode band', 'pin 1 dot', "
+            "WHAT the polarity marking looks like (e.g. 'cathode band', 'pin 1 dot', "
             "'beveled corner'), if is_polarized is true and the datasheet shows it."
+        ),
+    )
+    polarity_reference_location: str | None = Field(
+        default=None,
+        description=(
+            "WHERE the polarity marking is located on the package footprint, stated "
+            "relative to a fixed reference (e.g. 'on the end opposite pin 1', 'top-left "
+            "corner when viewed from above with pin 1 at bottom-left', 'cathode band on "
+            "the terminal nearest the tape sprocket-hole edge'). Required whenever "
+            "is_polarized is true and the datasheet's top/marking view shows the "
+            "orientation — a marking type alone (polarity_feature) is not enough to place "
+            "the part correctly on the board; the placement machine needs to know which "
+            "side/corner it's on. If the datasheet shows the marking but not a clear "
+            "reference direction, say so in source_notes and lower polarity_confidence."
         ),
     )
     weight_g: float | None = Field(
         default=None, description="Component weight in grams, if stated."
     )
     tape_width_mm: float | None = Field(
-        default=None, description="Carrier tape width in mm, if stated (e.g. 8, 12, 16, 24)."
+        default=None,
+        description=(
+            "Carrier tape width in mm, from the datasheet's tape & reel / packaging "
+            "section (e.g. 8, 12, 16, 24). Required whenever the datasheet documents a "
+            "tape & reel packing option — read it from that section's table or drawing "
+            "rather than leaving it blank."
+        ),
     )
     pocket_pitch_mm: float | None = Field(
-        default=None, description="Tape pocket pitch in mm, if stated (e.g. 2, 4, 8)."
+        default=None,
+        description=(
+            "Component pitch on the carrier tape in mm: the center-to-center distance "
+            "between successive component pockets/cavities (e.g. 2, 4, 8, 12), from the "
+            "tape & reel section. Required whenever the datasheet documents a tape & reel "
+            "packing option — read it from that section's table or drawing rather than "
+            "leaving it blank."
+        ),
+    )
+    tape_carrier_material: TapeCarrierMaterial = Field(
+        default=TapeCarrierMaterial.UNKNOWN,
+        description=(
+            "Carrier tape material/construction, from the tape & reel section: "
+            "'embossed' (pockets formed into a thicker plastic tape, common for taller "
+            "parts) vs 'paper' (punched paper/soft tape, common for very low-profile "
+            "chip parts). Use 'unknown' only if the datasheet's tape & reel section does "
+            "not state or show it."
+        ),
     )
     top_surface: TopSurface = Field(
         default=TopSurface.UNKNOWN,

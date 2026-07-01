@@ -50,6 +50,22 @@ L = foot/lead length.
 Height handling: body_height_mm must be the MAXIMUM stated height (seated \
 max), never typical or minimum, because it determines nozzle clearance.
 
+Always check the datasheet for these three things and fill in every field \
+that applies, rather than leaving them blank by default:
+  1. Tape & reel packaging, if documented: tape_width_mm, pocket_pitch_mm \
+(the pitch/distance between components on the tape, not the lead pitch), \
+and tape_carrier_material (embossed vs. paper).
+  2. Polarity reference, if is_polarized is true: not just what the marking \
+looks like (polarity_feature, e.g. 'cathode band') but WHERE it is on the \
+package (polarity_reference_location), stated relative to a fixed \
+reference such as pin 1, a tape sprocket-hole edge, or a stated corner in \
+the top/marking view. A marking type alone is not enough to orient the \
+part on the board.
+  3. Lead size and count, if lead_type is not 'none_chip_electrode': read \
+lead_count and lead_width_mm from the pin/lead table or mechanical \
+drawing (not just visually estimated from a photo) — these are required \
+whenever the part actually has leads/pins/balls, not optional extras.
+
 Never guess. If a value is not explicitly stated or clearly derivable, \
 omit the optional field (or, for required fields, give your best estimate \
 but lower the relevant confidence) and explain what's missing in \
