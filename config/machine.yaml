@@ -1,0 +1,35 @@
+# PLACEHOLDER — Fuji NXT machine configuration.
+# Fill in real values from your machine/Flexa setup before any output from
+# this tool is used to configure a real pick-and-place run.
+#
+# Nozzle and vision identifiers below are neutral placeholders, NOT real
+# Fuji part numbers or algorithm names. Replace with your site's catalog.
+
+# Maximum component height (mm) any nozzle on this machine can clear.
+# Safety-critical: components taller than this must never be auto-mapped.
+max_nozzle_clearance_mm: 999.0  # TODO: set to your real machine limit
+
+# Maximum component weight (g) the placement head can handle.
+max_component_weight_g: 999.0  # TODO: set to your real machine limit
+
+# Nozzle catalog: id -> notes. select_nozzle() in mapping.py picks among
+# these ids only; it never invents a nozzle name.
+nozzles:
+  NOZZLE_PLACEHOLDER_SMALL: "TODO: describe real nozzle (e.g. small chip)"
+  NOZZLE_PLACEHOLDER_MEDIUM: "TODO: describe real nozzle (e.g. SOIC/QFP)"
+  NOZZLE_PLACEHOLDER_LARGE: "TODO: describe real nozzle (e.g. large QFN/BGA)"
+  NOZZLE_PLACEHOLDER_FALLBACK: "Fallback nozzle used when no rule matches"
+
+# Vision/recognition catalog: id -> notes.
+vision_types:
+  VISION_PLACEHOLDER_CHIP: "TODO: describe real vision mode for chip/electrode parts"
+  VISION_PLACEHOLDER_LEADED: "TODO: describe real vision mode for leaded parts"
+  VISION_PLACEHOLDER_NOLEAD: "TODO: describe real vision mode for QFN/BGA"
+  VISION_PLACEHOLDER_FALLBACK: "Fallback vision type used when no rule matches"
+
+# Confidence thresholds used by validate.py. Below these, items are routed
+# to the review queue instead of being trusted automatically.
+thresholds:
+  min_confidence: 0.75
+  min_height_confidence: 0.85
+  min_polarity_confidence: 0.85

@@ -1,0 +1,35 @@
+# PLACEHOLDER — nozzle selection rules.
+#
+# Ordered list of predicate -> nozzle rules. mapping.py evaluates these
+# top to bottom against a ComponentSpec and uses the FIRST match. If no
+# rule matches, the fallback nozzle from machine.yaml is used and
+# `fallback_used=True` is reported so the part is routed for review.
+#
+# `when` is a small declarative condition schema (evaluated safely in
+# mapping.py, never via eval()):
+#   - a field -> [allowed values]            (membership test)
+#   - a field -> {max: X} or {min: X}         (numeric range test)
+# All listed conditions under one rule must hold (AND).
+#
+# Replace with real rules once the Flexa export / machine history is
+# available (see flexa_import.py).
+
+rules:
+  - id: placeholder_small_chip
+    when:
+      lead_type: [none_chip_electrode]
+      body_height_mm: { max: 1.2 }
+    nozzle: NOZZLE_PLACEHOLDER_SMALL
+    rationale: "TODO: replace with real small-chip nozzle rule"
+
+  - id: placeholder_leaded_medium
+    when:
+      lead_type: [gull_wing, j_lead]
+    nozzle: NOZZLE_PLACEHOLDER_MEDIUM
+    rationale: "TODO: replace with real leaded-package nozzle rule"
+
+  - id: placeholder_nolead_large
+    when:
+      lead_type: [qfn_no_lead_pad, bga_ball]
+    nozzle: NOZZLE_PLACEHOLDER_LARGE
+    rationale: "TODO: replace with real QFN/BGA nozzle rule"

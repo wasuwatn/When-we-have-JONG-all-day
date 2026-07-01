@@ -1,0 +1,34 @@
+# PLACEHOLDER — vision/recognition type selection rules.
+#
+# Simple lead_type -> vision_type mapping. mapping.py looks up the spec's
+# lead_type here; if absent, the fallback vision type from machine.yaml is
+# used and `fallback_used=True` is reported.
+#
+# Replace with real rules once the Flexa export / machine history is
+# available (see flexa_import.py).
+
+rules:
+  - id: placeholder_chip_vision
+    lead_type: none_chip_electrode
+    vision_type: VISION_PLACEHOLDER_CHIP
+    rationale: "TODO: replace with real chip/electrode vision rule"
+
+  - id: placeholder_leaded_vision
+    lead_type: gull_wing
+    vision_type: VISION_PLACEHOLDER_LEADED
+    rationale: "TODO: replace with real gull-wing vision rule"
+
+  - id: placeholder_jlead_vision
+    lead_type: j_lead
+    vision_type: VISION_PLACEHOLDER_LEADED
+    rationale: "TODO: replace with real J-lead vision rule"
+
+  - id: placeholder_nolead_vision
+    lead_type: qfn_no_lead_pad
+    vision_type: VISION_PLACEHOLDER_NOLEAD
+    rationale: "TODO: replace with real QFN vision rule"
+
+  - id: placeholder_bga_vision
+    lead_type: bga_ball
+    vision_type: VISION_PLACEHOLDER_NOLEAD
+    rationale: "TODO: replace with real BGA vision rule"
