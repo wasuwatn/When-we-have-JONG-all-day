@@ -10,6 +10,28 @@ those facts plus your machine's configuration. The AI never picks
 hardware settings. See [`CLAUDE.md`](CLAUDE.md) for the full set of
 safety rules this tool enforces.
 
+## One-click Windows installer (no terminal, no Python needed)
+
+If you just want to run the app on your own PC without touching a
+command line: go to this repo's **Actions** tab → **Build Windows
+installer** → pick the latest successful run → download the
+`SmdNxtAgent-Setup` artifact, unzip it, and run `SmdNxtAgent-Setup.exe`.
+It's a normal click-through installer (no admin rights needed — it
+installs under your user profile), adds a Start Menu entry and an
+optional desktop shortcut, and offers to launch the app when it's done.
+From then on, just double-click the shortcut.
+
+The installer bundles `config\` and the sample datasheets alongside the
+app, so nozzle/vision rule edits (`config\*.yaml`) and your Gemini API
+key (entered once in the GUI, saved to `.env` next to the app) live in
+the same install folder — back that folder up if you customize it.
+
+(This is built automatically by
+`.github/workflows/build-windows-installer.yml` on a Windows CI runner,
+since PyInstaller can't cross-compile a `.exe` from Linux/macOS. You can
+also trigger a fresh build yourself from the Actions tab if you've
+pushed changes and don't want to wait for the next automatic run.)
+
 ## GUI (no terminal needed)
 
 For non-technical users, there's a simple desktop window instead of the
