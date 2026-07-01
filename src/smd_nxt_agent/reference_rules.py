@@ -77,34 +77,46 @@ def _matches_aliases(package_name: str, aliases: list[str], category_id: str) ->
 
 
 def lookup_nozzle(
-    spec: ComponentSpec, head_id: str | None, ref: ReferenceData
+    spec: ComponentSpec, head_ids: list[str] | None, ref: ReferenceData
 ) -> tuple[str, str, str] | None:
-    """Returns (nozzle_id, rule_id, rationale) or None if no confident match."""
-    if not head_id or not ref.nozzle_compat:
+    """Returns (nozzle_id, rule_id, rationale) or None if no confident match.
+
+    `head_ids` is checked in order (a machine may have more than one head
+    mounted); the first configured head that supports the matched package
+    category wins. A head that doesn't list the category, or lists it as
+    unsupported, is skipped rather than failing the whole lookup, so other
+    configured heads still get a chance.
+    """
+    if not head_ids or not ref.nozzle_compat:
         return None
 
     heads = ref.nozzle_compat.get("heads", {})
-    head_table = heads.get(head_id)
-    if not head_table:
-        return None
 
+    category_id = None
+    diameter_mm = None
     for category in ref.nozzle_compat.get("package_categories", []):
-        category_id = category["id"]
-        if not _matches_aliases(spec.package_name, category.get("aliases", []), category_id):
-            continue
+        if _matches_aliases(spec.package_name, category.get("aliases", []), category["id"]):
+            category_id = category["id"]
+            diameter_mm = category.get("diameter_mm")
+            break
+
+    if category_id is None or diameter_mm is None:
+        return None  # no matching category, or matched but no diameter recorded to act on
+
+    for head_id in head_ids:
+        head_table = heads.get(head_id)
+        if not head_table:
+            continue  # head not in the reference table; try the next configured head
 
         symbol = head_table.get(category_id)
         if not symbol or not symbol.startswith(_SUPPORTED_SYMBOL_PREFIXES):
-            return None  # matched category, but this head can't take it — no nozzle guess
-
-        diameter_mm = category.get("diameter_mm")
-        if diameter_mm is None:
-            return None  # supported per the table, but no diameter recorded to act on
+            continue  # this head can't take it; try the next configured head
 
         nozzle_id = f"{diameter_mm}mm"
         rationale = (
-            f"Reference table (unverified): head={head_id}, package={category_id}, "
-            f"symbol={symbol} -> nozzle diameter {diameter_mm}mm"
+            f"Reference table (unverified): head={head_id} (checked in order: "
+            f"{', '.join(head_ids)}), package={category_id}, symbol={symbol} "
+            f"-> nozzle diameter {diameter_mm}mm"
         )
         return nozzle_id, f"reference_nozzle_{category_id}", rationale
 

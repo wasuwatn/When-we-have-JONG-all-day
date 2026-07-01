@@ -53,21 +53,22 @@ def _save_api_key(key: str) -> None:
     ENV_FILE.write_text("\n".join(lines) + "\n")
 
 
-def _load_configured_head() -> str | None:
+def _load_configured_heads() -> list[str]:
     if not MACHINE_YAML.exists():
-        return None
+        return []
     machine = yaml.safe_load(MACHINE_YAML.read_text())
-    return machine.get("head") if machine else None
+    heads = machine.get("heads") if machine else None
+    return list(heads) if heads else []
 
 
-def _save_configured_head(head_id: str | None) -> None:
+def _save_configured_heads(head_ids: list[str]) -> None:
     if not MACHINE_YAML.exists():
         return
     lines = MACHINE_YAML.read_text().splitlines()
-    new_value = "null" if head_id is None else head_id
+    new_value = "[" + ", ".join(head_ids) + "]"
     for i, line in enumerate(lines):
-        if line.strip().startswith("head:"):
-            lines[i] = f"head: {new_value}"
+        if line.strip().startswith("heads:"):
+            lines[i] = f"heads: {new_value}"
             break
     MACHINE_YAML.write_text("\n".join(lines) + "\n")
 
@@ -398,14 +399,18 @@ class App(ttk.Frame):
 
         head_row = ttk.Frame(parent)
         head_row.pack(fill="x", pady=(0, 10))
-        ttk.Label(head_row, text="Machine head (used for nozzle lookups):").pack(side="left")
-        heads = self._reference.available_heads()
-        self.head_var = tk.StringVar(value=_load_configured_head() or "")
-        head_combo = ttk.Combobox(
-            head_row, textvariable=self.head_var, values=heads, state="readonly", width=20
-        )
-        head_combo.pack(side="left", padx=6)
-        head_combo.bind("<<ComboboxSelected>>", self._on_head_selected)
+        ttk.Label(
+            head_row,
+            text="Machine head(s) mounted (checked = used for nozzle lookups, in order):",
+        ).pack(side="left")
+        configured = set(_load_configured_heads())
+        self._head_vars: dict[str, tk.BooleanVar] = {}
+        for head_id in self._reference.available_heads():
+            var = tk.BooleanVar(value=head_id in configured)
+            self._head_vars[head_id] = var
+            ttk.Checkbutton(
+                head_row, text=head_id, variable=var, command=self._on_head_selected
+            ).pack(side="left", padx=6)
 
         notebook = ttk.Notebook(parent)
         notebook.pack(fill="both", expand=True)
@@ -418,8 +423,13 @@ class App(ttk.Frame):
         self._build_nozzle_table(nozzle_tab)
         self._build_vision_table(vision_tab)
 
-    def _on_head_selected(self, _event: object = None) -> None:
-        _save_configured_head(self.head_var.get() or None)
+    def _on_head_selected(self) -> None:
+        checked = [
+            head_id
+            for head_id in self._reference.available_heads()
+            if self._head_vars[head_id].get()
+        ]
+        _save_configured_heads(checked)
 
     def _build_nozzle_table(self, parent: ttk.Frame) -> None:
         columns = ("category", "diameter_mm", *self._reference.available_heads())
