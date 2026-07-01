@@ -45,6 +45,27 @@ def extract(
     run(datasheets_dir, out_dir, model=model, use_cache=cache, config_dir=config)
 
 
+@app.command(name="export-fuji")
+def export_fuji_cmd(
+    parts_json: Path = typer.Argument(
+        ..., help="Path to a parts.json produced by `smd-nxt extract`."
+    ),
+    out_dir: Path = typer.Argument(..., help="Folder to write fuji_parts.csv into."),
+    config: Path = typer.Option(
+        Path("config"), help="Folder containing fuji_export.yaml."
+    ),
+    decisions: Path = typer.Option(
+        None,
+        help="Path to human_review_decisions.json (from the GUI) used to admit "
+        "confirmed needs_review parts.",
+    ),
+) -> None:
+    """Convert parts.json into the Fuji NXT batch CSV read by Auto-gen-part-Fuji."""
+    from smd_nxt_agent.fuji_export import run as run_export
+
+    run_export(parts_json, out_dir, config_dir=config, decisions_path=decisions)
+
+
 @app.command(name="import-flexa")
 def import_flexa_cmd(
     export: Path = typer.Argument(..., help="Path to the Flexa part-library export file."),

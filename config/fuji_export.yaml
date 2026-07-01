@@ -1,0 +1,44 @@
+# PLACEHOLDER — export configuration for fuji_export.py.
+#
+# Maps smd-nxt-agent's ComponentSpec facts onto the parameter-based batch
+# CSV columns read by Auto-gen-part-Fuji's `fuji_generator.batch.process_csv`
+# (partno, part_type, body_x, body_y, body_h, tol_x, tol_y, pin_count,
+# pitch_x, pitch_y, tape_width, feed_pitch, feeder_type, comment, creator).
+# See https://github.com/wasuwatn/Auto-gen-part-Fuji README "Batch CSV
+# format" for the authoritative column contract.
+#
+# All values below are machine/site-specific and belong here, not in
+# fuji_export.py, per CLAUDE.md.
+
+# lead_type -> Fuji part_type (Auto-gen-part-Fuji only accepts Passive,
+# QFP, BGA, Odd-form — PartType enum in fuji_generator/shape_builder.py).
+part_type_by_lead_type:
+  none_chip_electrode: Passive
+  gull_wing: QFP
+  j_lead: QFP
+  qfn_no_lead_pad: QFP
+  bga_ball: BGA
+  through_hole_pin: Odd-form
+  odd_form: Odd-form
+  other: Odd-form
+
+# Used when lead_type has no entry above.
+default_part_type: Odd-form
+
+# Auto-gen-part-Fuji's parameter-based builder has no per-axis body
+# tolerance fact in ComponentSpec; these are placeholder site defaults.
+# TODO: replace with your real placement tolerances.
+default_tol_x_mm: 0.1
+default_tol_y_mm: 0.1
+
+# ComponentSpec has no feeder-mechanism field (Emboss vs Paper); the
+# datasheet doesn't state it. TODO: set to your site's default feeder.
+default_feeder_type: Emboss
+
+# Used only when a part's tape_width_mm / pocket_pitch_mm were not
+# extracted from its datasheet.
+default_tape_width_mm: 8
+default_feed_pitch_mm: 4
+
+# Creator name written into every generated Fuji part file.
+creator: smd-nxt-agent
