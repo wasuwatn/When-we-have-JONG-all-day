@@ -10,7 +10,34 @@ those facts plus your machine's configuration. The AI never picks
 hardware settings. See [`CLAUDE.md`](CLAUDE.md) for the full set of
 safety rules this tool enforces.
 
-## Setup
+## GUI (no terminal needed)
+
+For non-technical users, there's a simple desktop window instead of the
+CLI. The flow is one part at a time: enter your Gemini API key once, type
+the part number, pick its datasheet PDF, click **Analyze**, and see the
+result in the window. Anything unsafe or ambiguous (a part-number mismatch,
+or a part that needs review) pops up as a modal asking you to confirm.
+Results are written to `out/` automatically. Folder/batch extraction stays
+on the CLI (`smd-nxt extract <dir> <out>`).
+
+```bash
+pip install -e ".[dev]"
+smd-nxt-gui
+```
+
+To give someone a double-clickable app with no Python/terminal at all,
+build a standalone `.exe` (Windows) from an activated venv:
+
+```cmd
+pip install -e ".[dev]"
+build_gui_exe.bat
+```
+
+This produces `dist\smd-nxt-gui.exe`. Keep the `config\` folder next to
+the `.exe` (it reads/writes `config\` and `.env` from its current
+folder) before handing it to someone else.
+
+## Setup (command line)
 
 ```bash
 python -m venv .venv && source .venv/bin/activate

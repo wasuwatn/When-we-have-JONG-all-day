@@ -1,0 +1,151 @@
+# UNVERIFIED reference data — transcribed by AI from a user-provided
+# screenshot of a Fuji "Vision Type convert table (old machine ->
+# NXT/AIM/AIMEX/NXT-H)" on 2026-06-29. Same verification gate as
+# config/reference/nozzle_compatibility.yaml: while `verified: false`,
+# any vision selection derived from this table forces needs_review.
+
+verified: false
+source_note: >
+  Transcribed from a screenshot pasted into chat; not yet cross-checked
+  against the printed/PDF Fuji guide. Re-verify every row before trusting.
+
+# part_type_id matches package_categories ids in nozzle_compatibility.yaml
+# where the two tables describe the same physical category, so one
+# package_name can resolve both a nozzle and a vision type. `vision_type`
+# is the NXT/AIM/AIMEX/NXT-H column value; remarks are carried through for
+# the GUI reference page.
+entries:
+  - part_type_id: RECTANGLE
+    aliases: ["Rectangular parts", "Rectangles"]
+    vision_type: "60"
+    remarks: "Rectangular parts / rectangles"
+
+  - part_type_id: RECTANGLE_SMALL
+    aliases: ["1005 (0402)\"", "0603 (0201)\" rectangular chips"]
+    vision_type: "66"
+    remarks: "Pickup error checks performed"
+
+  - part_type_id: ALUMINUM_ELECTROLYTIC
+    aliases: ["Aluminum electrolytic capacitors"]
+    vision_type: "65"
+    remarks: "Lead checks not performed"
+
+  - part_type_id: TANTALUM_NO_POLARITY_CHECK
+    aliases: ["Tantalum spragues"]
+    vision_type: "61"
+    remarks: ""
+
+  - part_type_id: RESISTOR_NETWORK_MELF
+    aliases: ["Resistor networks", "MELFS"]
+    vision_type: "62"
+    remarks: "With polarity check"
+
+  - part_type_id: TANTALUM_POLARITY_CHECK
+    aliases: ["Tantalum spragues (polarity check)"]
+    vision_type: "63"
+    remarks: "Polarity check performed"
+
+  - part_type_id: SEEK_LINES
+    aliases: ["Seek lines"]
+    vision_type: "18"
+    remarks: "Using Part Data Wizard (template data)"
+
+  - part_type_id: SEEK_LINES_LEAD_CHECK
+    aliases: ["Seek lines (lead checks performed)"]
+    vision_type: "19"
+    remarks: "Using Part Data Wizard (template data); lead checks performed"
+
+  - part_type_id: SOT_LEADS_MULTIPURPOSE
+    aliases: ["SOT-type devices", "Leads (multipurpose)"]
+    vision_type: "70"
+    remarks: "Vision type auto-changes from 20 to 75 (body detection back lighting)"
+
+  - part_type_id: TRIMMER_RESISTOR_CAP
+    aliases: ["Trimmer resistors", "trimmer capacitors"]
+    vision_type: "71"
+    remarks: ""
+
+  - part_type_id: HEMT_0DEG
+    aliases: ["HEMT (0 degrees)"]
+    vision_type: "72"
+    remarks: ""
+
+  - part_type_id: HEMT_45DEG
+    aliases: ["HEMT (45 degrees)"]
+    vision_type: "73"
+    remarks: ""
+
+  - part_type_id: TRIMMER_POLARITY_CHECK
+    aliases: ["Trimmer resistors/capacitors with polarity check"]
+    vision_type: "74"
+    remarks: "Polarity check performed"
+
+  - part_type_id: ROUND_PARTS
+    aliases: ["Round parts", "Squares and circles"]
+    vision_type: "80"
+    remarks: "Angle measurement not performed"
+
+  - part_type_id: LEADED_PARTS_1
+    aliases: ["Leaded parts (1)", "ICs, connectors"]
+    vision_type: "123 (128)"
+    remarks: "Black nozzles used for SOPs/QFPs"
+
+  - part_type_id: LEADED_PARTS_2
+    aliases: ["Leaded parts (2)", "ICs, connectors"]
+    vision_type: "124 (129)"
+    remarks: "Black nozzles used for PLCC20/28/44/52"
+
+  - part_type_id: TANTALUM_MINIMOLD_FEWLEADS
+    aliases: ["Tantalum capacitors", "minimolds (two to six leads)"]
+    vision_type: "180 (185)"
+    remarks: "Parts with few leads"
+
+  - part_type_id: BGA_BLACK_BACKLIGHT
+    aliases: ["BGA devices inspected with back lighting (black bodies)"]
+    vision_type: "230 (235)"
+    remarks: "Grid array bumped parts, black bodies"
+
+  - part_type_id: BGA_WHITE_BACKLIGHT
+    aliases: ["BGA devices inspected with back lighting (white bodies)"]
+    vision_type: "231 (236)"
+    remarks: "White bodied, grid array bumped parts"
+
+  - part_type_id: BUMPED_PARTS_FRONTLIGHT
+    aliases: ["Bumped parts"]
+    vision_type: "140 (145)"
+    remarks: "Inspected with front lighting"
+
+  - part_type_id: CCGA
+    aliases: ["CCGA parts"]
+    vision_type: "230 (235)"
+    remarks: "Black bodies"
+
+  - part_type_id: LGA
+    aliases: ["LGA parts"]
+    vision_type: "230 (235)"
+    remarks: "Black bodies"
+
+  - part_type_id: WHITE_BODY_LEADED_CONNECTOR
+    aliases: ["White bodied leaded parts", "ICs, connectors (white)"]
+    vision_type: "153 (158)"
+    remarks: "For white connectors"
+
+  - part_type_id: BLACK_BODY_LEADED_CONNECTOR
+    aliases: ["Leaded parts (2)", "ICs, connectors (black)"]
+    vision_type: "152 (157)"
+    remarks: "For black connectors"
+
+  - part_type_id: WHITE_BODY_DETECTION
+    aliases: ["White body detection"]
+    vision_type: "160 (165)"
+    remarks: "Part existence check, inspected with front lighting"
+
+  - part_type_id: MULTIPURPOSE_VPDPLUS
+    aliases: ["Multipurpose processing"]
+    vision_type: "240"
+    remarks: "Using VPDplus (radial data)"
+
+  - part_type_id: COMBINATION_NEXIM_ONLY
+    aliases: ["Combination processing"]
+    vision_type: "0"
+    remarks: "Only in Nexim; supported only on AIMEX-3(c) machines"
