@@ -1,0 +1,52 @@
+name: Build Windows installer
+
+# Builds a one-click Windows installer (SmdNxtAgent-Setup.exe) for the
+# smd-nxt-agent GUI. PyInstaller builds for the platform it runs on, so this
+# must run on a Windows runner (can't cross-compile from Linux/macOS).
+#
+# Trigger manually from the Actions tab (works on any branch), or it runs
+# automatically on pushes to main. The installer is uploaded as a workflow
+# artifact — download it from the run's summary page, no local build step
+# needed.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "config/**"
+      - "examples/**"
+      - "pyproject.toml"
+      - "installer/**"
+      - ".github/workflows/build-windows-installer.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package + build tools
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Build smd-nxt-gui.exe with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name smd-nxt-gui src\smd_nxt_agent\gui.py
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile installer
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\smd-nxt-agent.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmdNxtAgent-Setup
+          path: installer\installer_output\SmdNxtAgent-Setup.exe
+          if-no-files-found: error

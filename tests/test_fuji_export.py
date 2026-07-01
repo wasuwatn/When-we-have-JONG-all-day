@@ -14,6 +14,11 @@ FIXTURES_DIR = ROOT / "tests" / "fixtures"
 def _record(fixture_name: str, source_file: str) -> PartRecord:
     spec = ComponentSpec.model_validate_json((FIXTURES_DIR / fixture_name).read_text())
     rules = load_rules(CONFIG_DIR)
+    # This module tests fuji_export.py's own field-mapping/gate logic, not the
+    # reference-table lookup (see test_reference_rules.py for that), so isolate
+    # from config/machine.yaml's shipped `heads` list to avoid these fixtures'
+    # package names (e.g. "0805") coincidentally matching a reference table entry.
+    rules.machine["heads"] = []
     mapping = map_spec(spec, rules)
     validation = validate(spec, mapping, rules.machine)
     return PartRecord(

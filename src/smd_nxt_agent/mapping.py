@@ -70,8 +70,8 @@ def _rule_matches(spec: ComponentSpec, when: dict[str, Any]) -> bool:
 
 def select_nozzle(spec: ComponentSpec, rules: Rules) -> tuple[str, str, str, bool, bool]:
     """Returns (nozzle, rule_id, rationale, fallback_used, reference_unverified)."""
-    head_id = rules.machine.get("head")
-    ref_match = reference_rules.lookup_nozzle(spec, head_id, rules.reference)
+    head_ids = rules.machine.get("heads") or []
+    ref_match = reference_rules.lookup_nozzle(spec, head_ids, rules.reference)
     if ref_match is not None:
         nozzle, rule_id, rationale = ref_match
         return nozzle, rule_id, rationale, False, not rules.reference.nozzle_compat_verified

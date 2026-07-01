@@ -25,6 +25,7 @@ def _spec(**overrides: object) -> ComponentSpec:
 
 def test_small_chip_matches_first_rule() -> None:
     rules = load_rules(CONFIG_DIR)
+    rules.machine["heads"] = []  # isolate from the reference table; test placeholder rules only
     spec = _spec(lead_type=LeadType.NONE_CHIP_ELECTRODE, body_height_mm=0.6)
     mapping = map_spec(spec, rules)
     assert mapping.nozzle_rule_id == "placeholder_small_chip"
@@ -34,6 +35,7 @@ def test_small_chip_matches_first_rule() -> None:
 
 def test_leaded_package_matches_medium_rule() -> None:
     rules = load_rules(CONFIG_DIR)
+    rules.machine["heads"] = []  # isolate from the reference table; test placeholder rules only
     spec = _spec(lead_type=LeadType.GULL_WING, body_height_mm=1.5)
     mapping = map_spec(spec, rules)
     assert mapping.nozzle_rule_id == "placeholder_leaded_medium"
@@ -43,6 +45,7 @@ def test_leaded_package_matches_medium_rule() -> None:
 
 def test_unmatched_lead_type_falls_back() -> None:
     rules = load_rules(CONFIG_DIR)
+    rules.machine["heads"] = []  # isolate from the reference table; test placeholder rules only
     spec = _spec(lead_type=LeadType.ODD_FORM)
     mapping = map_spec(spec, rules)
     assert mapping.fallback_used is True
@@ -60,6 +63,7 @@ def test_vision_lookup_by_lead_type() -> None:
 
 def test_height_threshold_excludes_tall_chip() -> None:
     rules = load_rules(CONFIG_DIR)
+    rules.machine["heads"] = []  # isolate from the reference table; test placeholder rules only
     spec = _spec(lead_type=LeadType.NONE_CHIP_ELECTRODE, body_height_mm=5.0)
     mapping = map_spec(spec, rules)
     assert mapping.nozzle_rule_id != "placeholder_small_chip"
